@@ -1,43 +1,68 @@
-import { initializeApp } from 'firebase/app'
-import { getFirestore, collection, onSnapshot, doc, getDocs, query, orderBy, enableNetwork, disableNetwork, clearIndexedDbPersistence } from 'firebase/firestore'
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app'
+import { getFirestore, Firestore, collection, onSnapshot, doc, getDocs, query, orderBy, enableNetwork, disableNetwork, clearIndexedDbPersistence } from 'firebase/firestore'
 
 // Firebase configuration - matches the Electron app's Firebase project
 function requireEnv(value: string | undefined, name: string): string {
   if (!value) {
+    // During build/SSG, env vars might not be available - return empty string
+    // Runtime checks will handle missing config
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') {
+      console.warn(`Missing env var during build: ${name}`)
+      return ''
+    }
     throw new Error(`Missing required environment variable: ${name}`)
   }
   return value
 }
 
-// NOTE: Next.js only inlines NEXT_PUBLIC_* env vars into the browser bundle when they are
-// referenced statically (process.env.NEXT_PUBLIC_...). Dynamic access (process.env[name])
-// will be undefined in the browser.
-const firebaseConfig = {
-  apiKey: requireEnv(process.env.NEXT_PUBLIC_FIREBASE_API_KEY, 'NEXT_PUBLIC_FIREBASE_API_KEY'),
-  authDomain: requireEnv(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'),
-  projectId: requireEnv(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID, 'NEXT_PUBLIC_FIREBASE_PROJECT_ID'),
-  storageBucket: requireEnv(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'),
-  messagingSenderId: requireEnv(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID, 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
-  appId: requireEnv(process.env.NEXT_PUBLIC_FIREBASE_APP_ID, 'NEXT_PUBLIC_FIREBASE_APP_ID'),
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+// Lazy Firebase initialization - only initialize when needed
+let app: FirebaseApp | undefined
+let db: Firestore | undefined
+
+function getFirebaseApp(): FirebaseApp {
+  if (!app) {
+    // NOTE: Next.js only inlines NEXT_PUBLIC_* env vars into the browser bundle when they are
+    // referenced statically (process.env.NEXT_PUBLIC_...). Dynamic access (process.env[name])
+    // will be undefined in the browser.
+    const firebaseConfig = {
+      apiKey: requireEnv(process.env.NEXT_PUBLIC_FIREBASE_API_KEY, 'NEXT_PUBLIC_FIREBASE_API_KEY'),
+      authDomain: requireEnv(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'),
+      projectId: requireEnv(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID, 'NEXT_PUBLIC_FIREBASE_PROJECT_ID'),
+      storageBucket: requireEnv(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'),
+      messagingSenderId: requireEnv(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID, 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
+      appId: requireEnv(process.env.NEXT_PUBLIC_FIREBASE_APP_ID, 'NEXT_PUBLIC_FIREBASE_APP_ID'),
+      measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+    }
+
+    // Skip initialization if config is incomplete (during build)
+    if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+      throw new Error('Firebase config incomplete - skipping initialization')
+    }
+
+    app = initializeApp(firebaseConfig)
+  }
+  return app
 }
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig)
-const db = getFirestore(app)
-
-export { db }
+export function getDb(): Firestore {
+  if (!db) {
+    db = getFirestore(getFirebaseApp())
+  }
+  return db
+}
 
 // Ultra-aggressive cache clearing for emergency situations (factory resets, etc.)
 export async function clearAllFirebaseCache(): Promise<void> {
   try {
     console.log('🚨 ULTRA-AGGRESSIVE cache clearing (emergency mode)...')
     
+    const dbInstance = getDb()
+    
     // Step 1: Disable network
-    await disableNetwork(db)
+    await disableNetwork(dbInstance)
     
     // Step 2: Clear IndexedDB persistence cache
-    await clearIndexedDbPersistence(db)
+    await clearIndexedDbPersistence(dbInstance)
     
     // Step 3: Clear browser storage
     if (typeof window !== 'undefined') {
@@ -55,7 +80,7 @@ export async function clearAllFirebaseCache(): Promise<void> {
     }
     
     // Step 4: Re-enable network
-    await enableNetwork(db)
+    await enableNetwork(dbInstance)
     
     // Step 5: Wait for fresh connection
     await new Promise(resolve => setTimeout(resolve, 1000))
@@ -69,14 +94,16 @@ export async function clearAllFirebaseCache(): Promise<void> {
 // Get initial data from a Firestore collection with optional cache clearing
 export async function getInitial<T>(collectionName: string, forceFresh = false): Promise<T[]> {
   try {
+    const dbInstance = getDb()
+    
     // Gentle cache clearing for routine refreshes, aggressive only when needed
     if (forceFresh) {
       console.log(`🔄 Gentle cache refresh for ${collectionName}...`)
       
       try {
         // Only use network disable/enable for gentle refresh (no IndexedDB clearing)
-        await disableNetwork(db)
-        await enableNetwork(db)
+        await disableNetwork(dbInstance)
+        await enableNetwork(dbInstance)
         
         // Short delay for gentle refresh (reduced from 1000ms to 200ms)
         await new Promise(resolve => setTimeout(resolve, 200))
@@ -85,7 +112,7 @@ export async function getInitial<T>(collectionName: string, forceFresh = false):
       }
     }
     
-    const collectionRef = collection(db, collectionName)
+    const collectionRef = collection(dbInstance, collectionName)
     const querySnapshot = await getDocs(collectionRef)
     
     const data: T[] = []
@@ -105,7 +132,8 @@ export async function getInitial<T>(collectionName: string, forceFresh = false):
 // Subscribe to real-time updates from a Firestore collection
 export function subscribe<T>(collectionName: string, cb: (docs: T[]) => void) {
   try {
-    const collectionRef = collection(db, collectionName)
+    const dbInstance = getDb()
+    const collectionRef = collection(dbInstance, collectionName)
     
     // Subscribe to real-time updates
     const unsubscribe = onSnapshot(collectionRef, (querySnapshot) => {
@@ -129,8 +157,9 @@ export function subscribe<T>(collectionName: string, cb: (docs: T[]) => void) {
 // Get a single document from Firestore
 export async function getOne<T>(collectionName: string, id: string): Promise<T | null> {
   try {
-    const docRef = doc(db, collectionName, id)
-    const docSnap = await getDocs(query(collection(db, collectionName)))
+    const dbInstance = getDb()
+    const docRef = doc(dbInstance, collectionName, id)
+    const docSnap = await getDocs(query(collection(dbInstance, collectionName)))
     
     // Find the document with matching id
     let foundDoc: T | null = null
@@ -151,7 +180,8 @@ export async function getOne<T>(collectionName: string, id: string): Promise<T |
 // Subscribe to a single document's updates
 export function subscribeOne<T>(collectionName: string, id: string, cb: (doc: T | null) => void) {
   try {
-    const collectionRef = collection(db, collectionName)
+    const dbInstance = getDb()
+    const collectionRef = collection(dbInstance, collectionName)
     
     const unsubscribe = onSnapshot(collectionRef, (querySnapshot) => {
       let foundDoc: T | null = null
