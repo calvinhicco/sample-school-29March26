@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
         <TooltipProvider>
           <div className="w-full bg-brand-gradient text-white text-sm py-2.5 text-center font-medium shadow-sm">
             Sample School Real-Time update — synced from the desktop app. Editing is disabled.

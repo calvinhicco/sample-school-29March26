@@ -1,18 +1,20 @@
-import { getInitial as getFirebaseInitial, subscribe as subscribeFirebase, getOne as getFirebaseOne, subscribeOne as subscribeFirebaseOne } from './firebase'
+// Firebase connections removed - data is managed via Electron desktop app only
+// This file is kept for compatibility but returns empty data
 
-export async function getInitial<T>(tableName: string, forceFresh = false): Promise<T[]> {
-  return await getFirebaseInitial<T>(tableName, forceFresh)
+export async function getInitial<T>(_tableName: string, _forceFresh = false): Promise<T[]> {
+  return []
 }
 
-export function subscribe<T>(tableName: string, cb: (docs: T[]) => void) {
-  // Use Firebase subscription instead of Supabase
-  return subscribeFirebase<T>(tableName, cb)
+export function subscribe<T>(_tableName: string, _cb: (docs: T[]) => void) {
+  // No-op subscription
+  return () => {}
 }
 
-export async function getOne<T>(tableName: string, id: string): Promise<T | null> {
-  return await getFirebaseOne<T>(tableName, id)
+export async function getOne<T>(_tableName: string, _id: string): Promise<T | null> {
+  return null
 }
 
-export function subscribeOne<T>(tableName: string, id: string, cb: (doc: T | null) => void) {
-  return subscribeFirebaseOne<T>(tableName, id, cb)
+export function subscribeOne<T>(_tableName: string, _id: string, _cb: (doc: T | null) => void) {
+  // No-op subscription
+  return () => {}
 }
