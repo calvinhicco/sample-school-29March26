@@ -1,7 +1,3 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Users, Plus } from 'lucide-react'
 import { DashboardTotals } from '@/components/DashboardTotals'
 
 export default function DashboardPage() {
@@ -15,16 +11,6 @@ export default function DashboardPage() {
             Overview of your school's financials and activities
           </p>
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button disabled variant="outline">
-              <Plus className="w-4 h-4 mr-2" /> Add Record
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Available in Desktop (Electron) only</p>
-          </TooltipContent>
-        </Tooltip>
       </div>
 
       {/* Summary Cards */}

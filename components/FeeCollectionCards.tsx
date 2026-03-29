@@ -8,7 +8,7 @@ import { Student, AppSettings, BillingCycle } from '@/types/student-types'
 export function FeeCollectionCards() {
   const [students, setStudents] = useState<Student[]>([])
   const [settings, setSettings] = useState<AppSettings | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const isLocalhost =
@@ -116,14 +116,6 @@ export function FeeCollectionCards() {
   }
 
   useEffect(() => {
-    if (isLocalhost) {
-      setStudents([])
-      setSettings(null)
-      setLoading(false)
-      setError(null)
-      return
-    }
-
     setLoading(true)
     
     const loadStudents = async () => {
@@ -172,7 +164,7 @@ export function FeeCollectionCards() {
         unsubscribe()
       }
     }
-  }, [isLocalhost])
+  }, [])
 
   if (loading) {
     return (
@@ -208,26 +200,26 @@ export function FeeCollectionCards() {
     )
   }
 
-  const currentMonthTuitionFees = isLocalhost ? 0 : calculateMonthlyTuitionCollections(students)
-  const currentMonthTransportFees = isLocalhost ? 0 : calculateMonthlyTransportCollections(students)
+  const currentMonthTuitionFees = calculateMonthlyTuitionCollections(students)
+  const currentMonthTransportFees = calculateMonthlyTransportCollections(students)
   const currentMonthName = getCurrentMonthName()
 
   return (
     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
       {/* Tuition Fees Collected Card */}
-      <Card>
+      <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Tuition Fees Collected (Current Month Only)</CardTitle>
-          <DollarSign className="h-4 w-4 text-blue-600" />
+          <CardTitle className="text-sm font-medium text-white">Tuition Fees Collected (Current Month Only)</CardTitle>
+          <DollarSign className="h-4 w-4 text-white/80" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-blue-800">
+          <div className="text-2xl font-bold text-white">
             ${currentMonthTuitionFees.toLocaleString(undefined, {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-white/80">
             {currentMonthName}
           </p>
         </CardContent>
