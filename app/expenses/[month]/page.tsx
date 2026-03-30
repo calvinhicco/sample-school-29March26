@@ -1,7 +1,7 @@
 "use client"
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { use, useEffect, useMemo, useState } from 'react'
 import { getInitial, subscribe } from '@/lib/realtime'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -23,9 +23,9 @@ interface Expense {
 }
 
 type PageProps = {
-  params: {
+  params: Promise<{
     month: string
-  }
+  }>
 }
 
 function safeParseDate(dateString: string) {
@@ -42,7 +42,7 @@ export default function ExpensesMonthPage({ params }: PageProps) {
   const currentYear = now.getFullYear()
   const currentMonthIndex = now.getMonth()
 
-  const monthNumber = params.month
+  const { month: monthNumber } = use(params)
   const monthIndex = useMemo(() => {
     const parsed = Number.parseInt(monthNumber, 10)
     if (!Number.isFinite(parsed)) return null
