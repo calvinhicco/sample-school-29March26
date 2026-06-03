@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { getInitial, subscribe } from '@/lib/realtime'
+import { getInitial, subscribe, getAppSettings, subscribeAppSettings } from '@/lib/realtime'
 import { Loader2 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Users } from 'lucide-react'
@@ -48,13 +48,8 @@ export function DashboardTotals() {
         // Load extra billing data
         const extraBillingData = await getInitial('extraBilling', forceFresh)
         
-        // Load settings for outstanding calculations
-        const settingsData = await getInitial<AppSettings>('settings', forceFresh)
-        let appSettings: AppSettings | null = null
-        if (settingsData.length > 0) {
-          appSettings = settingsData[0]
-          setSettings(appSettings)
-        }
+        const appSettings = await getAppSettings<AppSettings>()
+        if (appSettings) setSettings(appSettings)
         
         console.log('📊 Dashboard data loaded:', {
           students: studentsData?.length || 0,
@@ -163,16 +158,12 @@ export function DashboardTotals() {
     })
     
     let settingsUpdateTimeout: NodeJS.Timeout | null = null
-    const unsubscribeSettings = subscribe<AppSettings>('settings', (settingsData) => {
-      // Throttle settings updates
+    const unsubscribeSettings = subscribeAppSettings<AppSettings>((appSettings) => {
       if (settingsUpdateTimeout) clearTimeout(settingsUpdateTimeout)
-      
       settingsUpdateTimeout = setTimeout(() => {
         console.log('⚙️ Settings updated')
-        if (settingsData.length > 0) {
-          setSettings(settingsData[0])
-        }
-      }, 1000) // 1 second throttle
+        setSettings(appSettings)
+      }, 1000)
     })
 
     // Set up auto-refresh every 30 seconds with gentle cache clearing

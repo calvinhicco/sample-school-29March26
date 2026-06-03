@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { getInitial, subscribe } from '@/lib/realtime'
+import { getInitial, subscribe, getAppSettings, subscribeAppSettings } from '@/lib/realtime'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -37,13 +37,8 @@ export default function OutstandingPage() {
         const outstandingData = await getInitial<any>('outstandingStudents')
         console.log(`📊 Fetched ${outstandingData.length} outstanding students from Firebase`)
         
-        // Fetch settings for billing cycle display
-        const settingsData = await getInitial<AppSettings>('settings')
-        let appSettings: AppSettings | null = null
-        if (settingsData.length > 0) {
-          appSettings = settingsData[0]
-          setSettings(appSettings)
-        }
+        const appSettings = await getAppSettings<AppSettings>()
+        if (appSettings) setSettings(appSettings)
         
         // Use pre-calculated outstanding data from Electron app
         setOutstandingStudents(outstandingData)
@@ -65,18 +60,16 @@ export default function OutstandingPage() {
       setOutstandingStudents(outstandingData || [])
     })
 
-    const unsubscribeSettings = subscribe<AppSettings>('settings', (settingsData) => {
+    const unsubscribeSettings = subscribeAppSettings<AppSettings>((appSettings) => {
       console.log('⚙️ Settings real-time update')
-      if (settingsData.length > 0) {
-        setSettings(settingsData[0])
-      }
+      setSettings(appSettings)
     })
 
     return () => {
       unsubscribeOutstanding()
       unsubscribeSettings()
     }
-  }, [settings])
+  }, [])
 
   // Calculate total outstanding from pre-calculated amounts
   const totalOutstanding = outstandingStudents.reduce((sum, student) => {

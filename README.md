@@ -1,99 +1,90 @@
 # Sample School
 
-A web-based mirror application for Sample School real-time updates.
+A read-only web mirror for **Sample School** (`school-29-march-26`). It displays the same Firestore data that the Electron desktop app syncs in real time.
 
-## Deployment Status
-- Last updated: September 12, 2025, featuring real-time data synchronization and comprehensive staff log management.
-- Git repository connected to Vercel - ready for deployment!
+- **GitHub**: [calvinhicco/sample-school-29March26](https://github.com/calvinhicco/sample-school-29March26)
+- **Vercel**: [sample-school-29-march26](https://vercel.com/lisachicco100-5111s-projects/sample-school-29-march26)
+- **Firebase**: [school-29-march-26](https://console.firebase.google.com/project/school-29-march-26)
 
 ## Features
 
-- **Dashboard Overview**: Real-time statistics and data visualization
-- **Student Management**: View student records and information
-- **Staff Log Sheet**: Daily attendance tracking with role-based grouping
-- **Expenses Tracking**: Financial records and expense management
-- **Extra Billing**: Additional billing and payment tracking
-- **Outstanding Records**: Overdue payments and follow-ups
+- **Dashboard**: Real-time totals (students, expenses, extra billing, outstanding)
+- **Students**: View records synced from the desktop app
+- **Expenses**: Monthly expense views
+- **Extra Billing**: Additional billing entries
+- **Outstanding**: Pre-calculated outstanding balances from Electron sync
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14, React 18, TypeScript
-- **Styling**: Tailwind CSS, shadcn/ui components
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
+- **Frontend**: Next.js, React, TypeScript, Tailwind CSS, shadcn/ui
+- **Backend**: Firebase Firestore (client SDK, read-only)
+- **Desktop source of truth**: Electron app with Firebase Admin sync
 - **Deployment**: Vercel
-- **Real-time**: Supabase Realtime subscriptions
+
+## Firestore collections (Electron → mirror)
+
+| Collection | Purpose |
+|------------|---------|
+| `students` | Active students |
+| `settings` / doc `app` | School name, billing cycle, class groups |
+| `expenses` | Expense records |
+| `extraBilling` | Extra billing pages |
+| `outstandingStudents` | Pre-calculated outstanding list |
+| `transferredStudents`, `pendingPromoted`, `staff`, `staffLogs` | Synced by desktop; not all exposed in mirror UI |
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ 
-- npm or yarn
-- Supabase account
-- Vercel account (for deployment)
+- Node.js 18+
+- Firebase project `school-29-march-26` with Firestore enabled
+- Electron app configured with `firebase-service-account.json` for the same project
 
 ### Installation
 
-1. Clone the repository:
 ```bash
-git clone <your-repo-url>
-cd web-mirror-with-staff-log
-```
-
-2. Install dependencies:
-```bash
+git clone https://github.com/calvinhicco/sample-school-29March26.git
+cd sample-school-29March26
 npm install
-```
-
-3. Set up environment variables:
-```bash
 cp .env.example .env.local
 ```
 
-4. Configure your `.env.local`:
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
+Fill `.env.local` with the **Web app** config from Firebase Console (Project settings → Your apps). All `NEXT_PUBLIC_FIREBASE_*` values must be from the same web app registration as the desktop mirror target.
 
-5. Run the development server:
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the application.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Deployment
+## Deployment (Vercel)
 
-This application is configured for deployment on Vercel with Supabase as the backend.
+Set these environment variables in the Vercel project (must match Electron / `.env.local`):
 
-### Environment Variables
+- `NEXT_PUBLIC_FIREBASE_API_KEY`
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `NEXT_PUBLIC_FIREBASE_APP_ID`
+- `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` (optional)
 
-Set these in your Vercel dashboard:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+Redeploy after changing env vars.
 
 ## Project Structure
 
 ```
-├── app/                    # Next.js app directory
-│   ├── staff/             # Staff log pages
-│   ├── students/          # Student management
-│   ├── expenses/          # Expense tracking
-│   └── layout.tsx         # Root layout
-├── components/            # Reusable components
-│   ├── ui/               # shadcn/ui components
-│   └── Nav.tsx           # Navigation component
-├── lib/                  # Utilities and configurations
-│   ├── supabase.ts      # Supabase client
-│   └── utils.ts         # Helper functions
-└── types/               # TypeScript type definitions
+├── app/                 # Next.js routes
+├── components/          # UI (Nav, dashboard cards, etc.)
+├── lib/
+│   ├── firebase.ts      # Firestore client
+│   └── realtime.ts      # Read/subscribe helpers
+└── types/               # Shared TypeScript types
 ```
 
 ## Contributing
 
-This is a read-only mirror application. All data modifications should be done through the main desktop application.
+This mirror is **read-only**. Data changes are made only in the Electron desktop application, which syncs to Firestore.
 
 ## License
 

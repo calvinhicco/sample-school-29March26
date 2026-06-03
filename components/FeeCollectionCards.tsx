@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from 'react'
-import { getInitial, subscribe } from '@/lib/realtime'
+import { getInitial, subscribe, getAppSettings, subscribeAppSettings } from '@/lib/realtime'
 import { Loader2, DollarSign } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Student, AppSettings, BillingCycle } from '@/types/student-types'
@@ -124,11 +124,8 @@ export function FeeCollectionCards() {
         const studentsData = await getInitial<Student>('students')
         setStudents(studentsData)
         
-        // Load settings
-        const settingsData = await getInitial<AppSettings>('settings')
-        if (settingsData.length > 0) {
-          setSettings(settingsData[0])
-        }
+        const appSettings = await getAppSettings<AppSettings>()
+        if (appSettings) setSettings(appSettings)
         
         setLoading(false)
         setError(null)
@@ -144,25 +141,19 @@ export function FeeCollectionCards() {
 
     // Set up real-time subscription with throttling
     let studentsUpdateTimeout: NodeJS.Timeout | null = null
-    const unsubscribe = subscribe<Student>('students', (studentsData) => {
-      // Throttle updates to prevent flickering
+    const unsubscribeStudents = subscribe<Student>('students', (studentsData) => {
       if (studentsUpdateTimeout) clearTimeout(studentsUpdateTimeout)
-      
       studentsUpdateTimeout = setTimeout(() => {
         console.log('Fee collection students data updated:', studentsData?.length || 0)
         setStudents(studentsData)
-      }, 1000) // 1 second throttle to prevent excessive updates
+      }, 1000)
     })
+    const unsubscribeSettings = subscribeAppSettings<AppSettings>(setSettings)
 
-    // Cleanup function
     return () => {
-      // Clear timeout
       if (studentsUpdateTimeout) clearTimeout(studentsUpdateTimeout)
-      
-      // Unsubscribe from Firebase
-      if (unsubscribe) {
-        unsubscribe()
-      }
+      unsubscribeStudents()
+      unsubscribeSettings()
     }
   }, [])
 

@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { subscribe, getInitial } from '@/lib/realtime'
+import { subscribe, getAppSettings, subscribeAppSettings } from '@/lib/realtime'
 import type { Student, AppSettings, BillingCycleType } from '@/types/student-types'
 import { BillingCycle } from '@/types/student-types'
 import { Button } from '@/components/ui/button'
@@ -71,17 +71,13 @@ export default function StudentsPage() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
 
   useEffect(() => {
-    const loadData = async () => {
-      // Load settings
-      const settingsData = await getInitial<AppSettings>('settings')
-      if (settingsData.length > 0) {
-        setSettings(settingsData[0])
-      }
+    getAppSettings<AppSettings>().then(setSettings)
+    const unsubStudents = subscribe<Student>('students', (docs) => setStudents(docs))
+    const unsubSettings = subscribeAppSettings<AppSettings>(setSettings)
+    return () => {
+      unsubStudents()
+      unsubSettings()
     }
-    
-    loadData()
-    const unsub = subscribe<Student>('students', (docs) => setStudents(docs))
-    return () => unsub()
   }, [])
 
   return (

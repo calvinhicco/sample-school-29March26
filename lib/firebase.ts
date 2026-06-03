@@ -1,5 +1,8 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app'
-import { getFirestore, Firestore, collection, onSnapshot, doc, getDocs, query, orderBy, enableNetwork, disableNetwork, clearIndexedDbPersistence } from 'firebase/firestore'
+import { getFirestore, Firestore, collection, onSnapshot, doc, getDoc, getDocs, query, enableNetwork, disableNetwork, clearIndexedDbPersistence } from 'firebase/firestore'
+
+/** Electron syncs app settings to settings/app (see lib/firebaseSync.js). */
+export const APP_SETTINGS_DOC_ID = 'app'
 
 // Firebase configuration - matches the Electron app's Firebase project
 function requireEnv(value: string | undefined, name: string): string {
@@ -126,6 +129,37 @@ export async function getInitial<T>(collectionName: string, forceFresh = false):
   } catch (error) {
     console.error(`❌ Error fetching ${collectionName}:`, error)
     return []
+  }
+}
+
+export async function getAppSettings<T>(): Promise<T | null> {
+  try {
+    const docRef = doc(getDb(), 'settings', APP_SETTINGS_DOC_ID)
+    const snap = await getDoc(docRef)
+    if (!snap.exists()) return null
+    return { id: snap.id, ...snap.data() } as T
+  } catch (error) {
+    console.error('Error fetching app settings:', error)
+    return null
+  }
+}
+
+export function subscribeAppSettings<T>(cb: (settings: T | null) => void) {
+  try {
+    const docRef = doc(getDb(), 'settings', APP_SETTINGS_DOC_ID)
+    return onSnapshot(
+      docRef,
+      (snap) => {
+        cb(snap.exists() ? ({ id: snap.id, ...snap.data() } as T) : null)
+      },
+      (error) => {
+        console.error('Error subscribing to app settings:', error)
+        cb(null)
+      },
+    )
+  } catch (error) {
+    console.error('Error setting up app settings subscription:', error)
+    return () => {}
   }
 }
 
