@@ -3,55 +3,18 @@
 @tailwind utilities;
 
 :root {
-  --background: 252 30% 96%;
-  --foreground: 258 30% 15%;
-
-  --card: 0 0% 100%;
-  --card-foreground: 258 30% 15%;
-
-  --popover: 0 0% 100%;
-  --popover-foreground: 258 30% 15%;
-
-  --primary: 258 95% 58%;
-  --primary-foreground: 0 0% 100%;
-
-  --secondary: 252 100% 98%;
-  --secondary-foreground: 260 60% 25%;
-
-  --muted: 252 30% 94%;
-  --muted-foreground: 260 10% 45%;
-
-  --accent: 0 84% 60%;
-  --accent-foreground: 0 0% 100%;
-
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-
-  --highlight: 0 100% 62%;
-  --highlight-foreground: 0 0% 100%;
-
-  --brand-start: 258 100% 60%;
-  --brand-end: 255 90% 68%;
-
-  --border: 252 30% 90%;
-  --input: 252 30% 90%;
-  --ring: 258 95% 58%;
-
-  --radius: 0.75rem;
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
-@layer base {
-  * { @apply border-border; }
-  body { @apply bg-background text-foreground antialiased; }
+body {
+  color: var(--foreground);
+  background: var(--background);
+  min-height: 100vh;
 }
 
 @layer utilities {
   .bg-brand-gradient {
-    background: linear-gradient(135deg, hsl(var(--brand-start)), hsl(var(--brand-end)));
-  }
-  .text-brand-gradient {
-    background: linear-gradient(135deg, hsl(var(--brand-start)), hsl(var(--brand-end)));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 50%, #5b21b6 100%);
   }
 }

@@ -1,200 +1,93 @@
-// Outstanding calculations for web mirror - matches Electron app logic
+import { BillingCycle, TERMS, type AppSettings, type BillingCycleType, type Student } from "@/types/school"
+import { getBillingWindowStartMonth, getOutstandingWindowStart } from "./billingStart"
+import { getStartOfMonth, getStartOfTerm } from "./dateUtils"
 
-interface Student {
-  id: string
-  fullName: string
-  className?: string
-  parentContact: string
-  classGroup: string
-  admissionDate: string
-  hasTransport: boolean
-  transportFee: number
-  hasCustomFees?: boolean
-  customSchoolFee?: number
-  feePayments: Array<{
-    period: number
-    amountDue: number
-    amountPaid: number
-    outstandingAmount: number
-    paid: boolean
-    paidDate?: string
-    isTransportWaived?: boolean
-  }>
-  transportPayments?: Array<{
-    month: number
-    amountDue: number
-    amountPaid: number
-    paid: boolean
-    isSkipped?: boolean
-  }>
+export { BillingCycle, type AppSettings, type BillingCycleType, type Student }
+
+const HOLIDAY_MONTHS = new Set([4, 8, 12])
+
+function isHolidayMonth(billingCycle: BillingCycleType, period: number): boolean {
+  return billingCycle === BillingCycle.MONTHLY && HOLIDAY_MONTHS.has(period)
 }
 
-interface AppSettings {
-  billingCycle: 'MONTHLY' | 'TERMLY' | 'monthly' | 'termly'
-  schoolName: string
-  classGroups: Array<{ id: string; name: string; standardFee: number }>
-}
-
-enum BillingCycle {
-  MONTHLY = 'MONTHLY',
-  TERMLY = 'TERMLY'
-}
-
-const TERMS = [
-  { period: 1, months: [1, 2, 3, 4] },    // Term 1: Jan-Apr
-  { period: 2, months: [5, 6, 7, 8] },    // Term 2: May-Aug
-  { period: 3, months: [9, 10, 11, 12] }  // Term 3: Sep-Dec
-]
-
-// Transport months exclude April (4), August (8), December (12)
-const TRANSPORT_MONTHS = [1, 2, 3, 5, 6, 7, 9, 10, 11]
-
-function getCurrentYear(): number {
-  return new Date().getFullYear()
-}
-
-function getCurrentMonth(): number {
-  return new Date().getMonth() + 1
-}
-
-function getStartOfMonth(year: number, month: number): Date {
-  return new Date(year, month - 1, 1)
-}
-
-function getStartOfTerm(year: number, termPeriod: number): Date {
-  const term = TERMS.find(t => t.period === termPeriod)
-  if (!term) return new Date()
-  return new Date(year, term.months[0] - 1, 1)
-}
-
-/**
- * Calculate transport outstanding for a student
- */
-export function calculateTransportOutstanding(student: Student): number {
-  if (!student.hasTransport || !Array.isArray(student.transportPayments)) {
-    return 0
+function getPeriodStartDate(
+  billingCycle: BillingCycleType,
+  period: number,
+  year: number,
+): Date {
+  if (billingCycle === BillingCycle.MONTHLY) {
+    return getStartOfMonth(year, period)
   }
-
-  const admissionDate = new Date(student.admissionDate)
-  const currentMonth = getCurrentMonth()
-  const admissionMonth = admissionDate.getMonth() + 1
-
-  let outstanding = 0
-
-  student.transportPayments.forEach((payment) => {
-    // Only include transport payments that are:
-    // 1. Due on or before current month
-    // 2. Not skipped
-    // 3. After or equal to admission month
-    // 4. In active transport months
-    if (
-      payment.month <= currentMonth &&
-      !payment.isSkipped &&
-      payment.month >= admissionMonth &&
-      TRANSPORT_MONTHS.includes(payment.month)
-    ) {
-      outstanding += payment.amountDue - payment.amountPaid
-    }
-  })
-
-  return Math.max(0, outstanding)
+  return getStartOfTerm(year, period)
 }
 
-/**
- * Calculate school fees outstanding only
- */
-export function calculateSchoolFeesOutstanding(student: Student, billingCycle: BillingCycle, settings?: AppSettings): number {
-  if (!Array.isArray(student.feePayments)) {
-    return 0
-  }
+export function calculateSchoolFeesOutstanding(
+  student: Student,
+  settings: AppSettings,
+): number {
+  if (!Array.isArray(student.feePayments)) return 0
 
-  const admissionDate = new Date(student.admissionDate)
   const currentDate = new Date()
-  const currentYear = getCurrentYear()
+  const currentYear = currentDate.getFullYear()
+  const billingCycle = settings.billingCycle
+  const windowStart = getOutstandingWindowStart(student, settings, currentYear)
 
   let outstanding = 0
 
   student.feePayments.forEach((payment) => {
-    // Determine the start date of the current payment period
-    let periodStartDate: Date
+    if (payment.isSkipped || isHolidayMonth(billingCycle, payment.period)) return
 
-    if (billingCycle === BillingCycle.MONTHLY) {
-      periodStartDate = getStartOfMonth(currentYear, payment.period)
-    } else {
-      // Termly
-      periodStartDate = getStartOfTerm(currentYear, payment.period)
-    }
+    const periodStartDate = getPeriodStartDate(billingCycle, payment.period, currentYear)
 
-    // Only consider periods that are current or in the past relative to the current date
-    // And that are after or in the same period as the admission date
-    const admissionPeriodStart = new Date(admissionDate.getFullYear(), admissionDate.getMonth(), 1)
-
-    if (periodStartDate <= currentDate && periodStartDate >= admissionPeriodStart) {
-      // Calculate the correct tuition amount dynamically for custom fee students
-      let tuitionAmount = 0
-      
-      if (student.hasCustomFees && student.customSchoolFee) {
-        tuitionAmount = student.customSchoolFee
+    if (periodStartDate <= currentDate && periodStartDate >= windowStart) {
+      if (!student.hasTransport || payment.isTransportWaived) {
+        outstanding += payment.outstandingAmount
       } else {
-        // Calculate based on class fee and billing cycle
-        const classGroup = settings?.classGroups?.find((g) => g.id === student.classGroup)
-        const classFee = classGroup?.standardFee || 0
-        
-        if (billingCycle === BillingCycle.MONTHLY) {
-          tuitionAmount = classFee
-        } else {
-          const term = TERMS.find((t) => t.period === payment.period)
-          if (term) {
-            tuitionAmount = classFee * term.months.length
-          }
-        }
+        const transportPart = billingCycle === BillingCycle.MONTHLY ? student.transportFee || 0 : 0
+        outstanding += Math.max(0, payment.outstandingAmount - transportPart)
       }
-      
-      // Calculate outstanding based on dynamic tuition amount
-      const tuitionOutstanding = Math.max(0, tuitionAmount - payment.amountPaid)
-      outstanding += tuitionOutstanding
     }
   })
 
-  return outstanding
+  return Math.round((outstanding + Number.EPSILON) * 100) / 100
 }
 
-/**
- * Calculate total outstanding from enrollment (school fees + transport)
- */
-export function calculateOutstandingFromEnrollment(student: Student, billingCycle: BillingCycle, settings?: AppSettings): number {
-  const schoolFeesOutstanding = calculateSchoolFeesOutstanding(student, billingCycle, settings)
-  const transportOutstanding = calculateTransportOutstanding(student)
+export function calculateTransportOutstanding(student: Student, settings: AppSettings): number {
+  if (!student.hasTransport || !Array.isArray(student.transportPayments)) return 0
 
-  return schoolFeesOutstanding + transportOutstanding
-}
+  const currentDate = new Date()
+  const currentMonth = currentDate.getMonth() + 1
+  const currentYear = currentDate.getFullYear()
+  const activationDate = student.transportActivationDate
+    ? new Date(student.transportActivationDate)
+    : new Date()
 
-/**
- * Get payment status for a student
- */
-export function getPaymentStatus(student: Student, billingCycle: BillingCycle, settings?: AppSettings): {
-  status: 'Paid in Full' | 'Partial Payment' | 'Outstanding'
-  color: string
-  icon: string
-} {
-  const outstanding = calculateOutstandingFromEnrollment(student, billingCycle, settings)
-  
-  if (outstanding === 0) {
-    return { status: 'Paid in Full', color: 'green', icon: 'check-circle' }
-  } else if (outstanding > 0) {
-    // Check if any payments have been made
-    const hasPaidSomething = student.feePayments?.some(p => p.amountPaid > 0) || 
-                            student.transportPayments?.some(p => p.amountPaid > 0)
-    
-    if (hasPaidSomething) {
-      return { status: 'Partial Payment', color: 'yellow', icon: 'alert-triangle' }
-    } else {
-      return { status: 'Outstanding', color: 'red', icon: 'alert-triangle' }
+  const windowStartMonth = Math.max(
+    1,
+    getBillingWindowStartMonth(student, settings, currentYear),
+    !Number.isNaN(activationDate.getTime()) && activationDate.getFullYear() === currentYear
+      ? activationDate.getMonth() + 1
+      : 1,
+  )
+
+  return student.transportPayments.reduce((total, payment) => {
+    const paymentMonth = payment.month
+    const isCurrentOrPast = paymentMonth <= currentMonth
+    const isAfterWindowStart = paymentMonth >= windowStartMonth
+
+    if (isCurrentOrPast && isAfterWindowStart && !payment.isSkipped && !payment.isWaived) {
+      return total + payment.outstandingAmount
     }
-  }
-  
-  return { status: 'Outstanding', color: 'red', icon: 'alert-triangle' }
+    return total
+  }, 0)
 }
 
-export type { Student, AppSettings }
-export { BillingCycle }
+export function calculateOutstandingFromEnrollment(student: Student, settings: AppSettings): number {
+  const schoolFees = calculateSchoolFeesOutstanding(student, settings)
+  const transport = calculateTransportOutstanding(student, settings)
+  return Math.round((schoolFees + transport + Number.EPSILON) * 100) / 100
+}
+
+export function formatMoney(amount: number, currency = "$"): string {
+  return `${currency}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
