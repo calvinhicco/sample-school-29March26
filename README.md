@@ -8,15 +8,21 @@ A read-only web mirror for **Sample School** (`school-29-march-26`). It displays
 
 ## Features
 
+- **Portal chooser** at `/` — School mirror + Parent academic reports
+- **School login** — Staff password gate (`/school/login`)
 - **Dashboard**: Real-time totals (students, expenses, extra billing, outstanding)
-- **Students**: View records synced from the desktop app
+- **Students**: List and detail with outstanding calculations
 - **Expenses**: Monthly expense views
-- **Extra Billing**: Additional billing entries
+- **Extra Billing**: Billing pages + **Groceries** checklist (live sync)
+- **Balance Sheet**: Monthly income vs expenses
+- **Inventory**: Stock and sales
+- **Resources**: Assets, consumables, issue log
 - **Outstanding**: Pre-calculated outstanding balances from Electron sync
+- **Parent portal**: Academic report viewer at `/parent`
 
 ## Tech Stack
 
-- **Frontend**: Next.js, React, TypeScript, Tailwind CSS, shadcn/ui
+- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS
 - **Backend**: Firebase Firestore (client SDK, read-only)
 - **Desktop source of truth**: Electron app with Firebase Admin sync
 - **Deployment**: Vercel
@@ -28,8 +34,11 @@ A read-only web mirror for **Sample School** (`school-29-march-26`). It displays
 | `students` | Active students |
 | `settings` / doc `app` | School name, billing cycle, class groups |
 | `expenses` | Expense records |
-| `extraBilling` | Extra billing pages |
+| `extraBilling` | Extra billing pages (incl. groceries) |
 | `outstandingStudents` | Pre-calculated outstanding list |
+| `inventories`, `sales` | Inventory mirror |
+| `assets`, `consumables`, `resourceIssues` | Resources mirror |
+| `academic*` collections | Parent report portal |
 | `transferredStudents`, `pendingPromoted`, `staff`, `staffLogs` | Synced by desktop; not all exposed in mirror UI |
 
 ## Getting Started
@@ -67,7 +76,7 @@ Set these environment variables in the Vercel project (must match Electron / `.e
 - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
 - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
 - `NEXT_PUBLIC_FIREBASE_APP_ID`
-- `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` (optional)
+- `NEXT_PUBLIC_SCHOOL_MIRROR_PASSWORD` (default `SuperAdmin123!`)
 
 Redeploy after changing env vars.
 
